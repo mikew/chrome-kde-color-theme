@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+set -euxo pipefail
+
+main() {
+  echo hi
+
+  name=$(kreadconfig General ColorScheme)
+  DEBUG="255, 0, 255"
+  WINDOW_BACKGROUND_NORMAL=$(kreadconfig Colors:Header BackgroundNormal)
+  if [ -z "${WINDOW_BACKGROUND_NORMAL}" ]; then
+    WINDOW_BACKGROUND_NORMAL=$(kreadconfig Colors:Window BackgroundNormal)
+  fi
+
+  WINDOW_BACKGROUND_INACTIVE=$(kreadconfig5 --group Colors:Header --group Inactive --key BackgroundNormal)
+  if [ -z "${WINDOW_BACKGROUND_INACTIVE}" ]; then
+    WINDOW_BACKGROUND_INACTIVE=$(kreadconfig Colors:Window BackgroundNormal)
+  fi
+
+  VIEW_BACKGROUND_NORMAL=$(kreadconfig Colors:View BackgroundNormal)
+  VIEW_BACKGROUND_ALTERNATE=$(kreadconfig Colors:View BackgroundAlternate)
+  VIEW_FOREGROUND_NORMAL=$(kreadconfig Colors:View ForegroundNormal)
+  TEXT_PRIMARY=$(kreadconfig Colors:Window ForegroundNormal)
+  TEXT_SECONDARY=$(kreadconfig Colors:Window ForegroundInactive)
+
+  rm -rf ./build/
+  mkdir -p ./build/
+
+  cat > ./build/manifest.json <<EOF
+{
+  "manifest_version": 2,
+
+  "name": "${name} (KDE)",
+  "description": "Built on $(date +%c)",
+
+  "version": "1.0.0",
+
+  "theme": {
+    "colors": {
+      "background_tab": [${WINDOW_BACKGROUND_NORMAL}],
+      "background_tab_inactive": [${WINDOW_BACKGROUND_INACTIVE}],
+      "bookmark_text": [${TEXT_SECONDARY}],
+      "button_background": [${DEBUG}],
+      "frame": [${WINDOW_BACKGROUND_NORMAL}],
+      "frame_inactive": [${WINDOW_BACKGROUND_INACTIVE}],
+      "ntp_background": [${VIEW_BACKGROUND_NORMAL}],
+      "ntp_header": [${DEBUG}],
+      "ntp_link": [${DEBUG}],
+      "ntp_text": [${VIEW_FOREGROUND_NORMAL}],
+      "omnibox_background": [${VIEW_BACKGROUND_NORMAL}],
+      "omnibox_text": [${TEXT_PRIMARY}],
+      "tab_background_text": [${TEXT_SECONDARY}],
+      "tab_background_text_inactive": [${TEXT_SECONDARY}],
+      "tab_text": [${TEXT_PRIMARY}],
+      "toolbar": [${VIEW_BACKGROUND_ALTERNATE}],
+      "toolbar_button_icon": [${TEXT_PRIMARY}],
+      "toolbar_text": [${TEXT_PRIMARY}]
+    },
+    "tints": {
+      "buttons": [ -1, -1, 0.98 ]
+    }
+  }
+}
+
+EOF
+}
+
+kreadconfig() {
+  kreadconfig5 --group "$1" --key "$2"
+}
+
+main "$@"
