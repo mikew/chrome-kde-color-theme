@@ -1,71 +1,256 @@
-#!/usr/bin/env bash
-set -euxo pipefail
+#!/usr/bin/env node
+// @ts-check
 
-main() {
-  echo hi
+const { spawnSync } = require('child_process')
+const fs = require('fs/promises')
+const path = require('path')
 
-  name=$(kreadconfig General ColorScheme)
-  DEBUG="255, 0, 255"
-  WINDOW_BACKGROUND_NORMAL=$(kreadconfig Colors:Header BackgroundNormal)
-  if [ -z "${WINDOW_BACKGROUND_NORMAL}" ]; then
-    WINDOW_BACKGROUND_NORMAL=$(kreadconfig Colors:Window BackgroundNormal)
-  fi
+async function main() {
+  spawnSync('rm', ['-r', 'build/'])
+  const kdeColorSchemeName = kReadConfig(['General'], 'ColorScheme')
 
-  WINDOW_BACKGROUND_INACTIVE=$(kreadconfig5 --group Colors:Header --group Inactive --key BackgroundNormal)
-  if [ -z "${WINDOW_BACKGROUND_INACTIVE}" ]; then
-    WINDOW_BACKGROUND_INACTIVE=$(kreadconfig Colors:Window BackgroundNormal)
-  fi
+  await saveManifest(
+    `${kdeColorSchemeName} (KDE) (System Decorations)`,
+    await buildSystemDecorationTheme(),
+  )
+  await saveManifest(
+    `${kdeColorSchemeName} (KDE) (Chrome Decorations)`,
+    await buildChromeDecorationTheme(),
+  )
+}
 
-  VIEW_BACKGROUND_NORMAL=$(kreadconfig Colors:View BackgroundNormal)
-  VIEW_BACKGROUND_ALTERNATE=$(kreadconfig Colors:View BackgroundAlternate)
-  VIEW_FOREGROUND_NORMAL=$(kreadconfig Colors:View ForegroundNormal)
-  TEXT_PRIMARY=$(kreadconfig Colors:Window ForegroundNormal)
-  TEXT_SECONDARY=$(kreadconfig Colors:Window ForegroundInactive)
+/**
+ * @param {string} name
+ * @param {Manifest} manifest
+ */
+async function saveManifest(name, manifest) {
+  manifest.name = name
+  manifest.description = `Built on ${new Date()}`
 
-  rm -rf ./build/
-  mkdir -p ./build/
+  const filePath = path.join('build', name, 'manifest.json')
+  spawnSync('mkdir', ['-p', path.dirname(filePath)])
+  await fs.writeFile(filePath, JSON.stringify(manifest, undefined, 2))
+}
 
-  cat > ./build/manifest.json <<EOF
-{
-  "manifest_version": 2,
+async function buildSystemDecorationTheme() {
+  let windowBackgroundNormal = kReadConfigColor(
+    ['Colors:Window'],
+    'BackgroundNormal',
+  )
+  try {
+    windowBackgroundNormal = kReadConfigColor(
+      ['Colors:Header'],
+      'BackgroundNormal',
+    )
+  } catch {}
+  let windowBackgroundInactive = kReadConfigColor(
+    ['Colors:Window'],
+    'BackgroundNormal',
+  )
+  try {
+    windowBackgroundInactive = kReadConfigColor(
+      ['Colors:Header', 'Inactive'],
+      'BackgroundNormal',
+    )
+  } catch {}
 
-  "name": "${name} (KDE)",
-  "description": "Built on $(date +%c)",
+  const viewBackgroundNormal = kReadConfigColor(
+    ['Colors:View'],
+    'BackgroundNormal',
+  )
+  const viewBackgroundAlternate = kReadConfigColor(
+    ['Colors:View'],
+    'BackgroundAlternate',
+  )
+  const viewForegroundNormal = kReadConfigColor(
+    ['Colors:View'],
+    'ForegroundNormal',
+  )
 
-  "version": "1.0.0",
+  const windowForegroundNormal = kReadConfigColor(
+    ['Colors:Window'],
+    'ForegroundNormal',
+  )
+  const windowForegroundInactive = kReadConfigColor(
+    ['Colors:Window'],
+    'ForegroundInactive',
+  )
 
-  "theme": {
-    "colors": {
-      "background_tab": [${WINDOW_BACKGROUND_NORMAL}],
-      "background_tab_inactive": [${WINDOW_BACKGROUND_INACTIVE}],
-      "bookmark_text": [${TEXT_SECONDARY}],
-      "button_background": [${DEBUG}],
-      "frame": [${WINDOW_BACKGROUND_NORMAL}],
-      "frame_inactive": [${WINDOW_BACKGROUND_INACTIVE}],
-      "ntp_background": [${VIEW_BACKGROUND_NORMAL}],
-      "ntp_header": [${DEBUG}],
-      "ntp_link": [${DEBUG}],
-      "ntp_text": [${VIEW_FOREGROUND_NORMAL}],
-      "omnibox_background": [${VIEW_BACKGROUND_NORMAL}],
-      "omnibox_text": [${TEXT_PRIMARY}],
-      "tab_background_text": [${TEXT_SECONDARY}],
-      "tab_background_text_inactive": [${TEXT_SECONDARY}],
-      "tab_text": [${TEXT_PRIMARY}],
-      "toolbar": [${VIEW_BACKGROUND_ALTERNATE}],
-      "toolbar_button_icon": [${TEXT_PRIMARY}],
-      "toolbar_text": [${TEXT_PRIMARY}]
+  /** @type {Manifest} */
+  const manifest = {
+    manifest_version: 2,
+    name: 'test',
+    description: 'test',
+    version: '1.0.0',
+    theme: {
+      colors: {
+        background_tab: windowBackgroundNormal,
+        background_tab_inactive: windowBackgroundInactive,
+        bookmark_text: windowForegroundNormal,
+        button_background: DEBUG_COLOR,
+        frame: windowBackgroundNormal,
+        frame_inactive: windowBackgroundInactive,
+        ntp_background: viewBackgroundNormal,
+        ntp_header: DEBUG_COLOR,
+        ntp_link: DEBUG_COLOR,
+        ntp_text: viewForegroundNormal,
+        omnibox_background: viewBackgroundNormal,
+        omnibox_text: viewForegroundNormal,
+        tab_background_text: windowForegroundInactive,
+        tab_background_text_inactive: windowForegroundInactive,
+        tab_text: windowForegroundNormal,
+        toolbar: viewBackgroundAlternate,
+        toolbar_button_icon: windowForegroundNormal,
+        toolbar_text: windowForegroundNormal,
+      },
     },
-    "tints": {
-      "buttons": [ -1, -1, 0.98 ]
-    }
   }
+
+  return manifest
 }
 
-EOF
+async function buildChromeDecorationTheme() {
+  const viewBackgroundNormal = kReadConfigColor(
+    ['Colors:View'],
+    'BackgroundNormal',
+  )
+  const viewBackgroundAlternate = kReadConfigColor(
+    ['Colors:View'],
+    'BackgroundAlternate',
+  )
+  const viewForegroundNormal = kReadConfigColor(
+    ['Colors:View'],
+    'ForegroundNormal',
+  )
+
+  const windowForegroundNormal = kReadConfigColor(
+    ['Colors:Window'],
+    'ForegroundNormal',
+  )
+  const windowForegroundInactive = kReadConfigColor(
+    ['Colors:Window'],
+    'ForegroundInactive',
+  )
+
+  const wmActiveBackground = kReadConfigColor(['WM'], 'activeBackground')
+  const wmActiveForeground = kReadConfigColor(['WM'], 'activeForeground')
+  const wmInactiveBackground = kReadConfigColor(['WM'], 'inactiveBackground')
+  const wmInactiveForeground = kReadConfigColor(['WM'], 'inactiveForeground')
+
+  /** @type {Manifest} */
+  const manifest = {
+    manifest_version: 2,
+    name: 'test',
+    description: 'test',
+    version: '1.0.0',
+    theme: {
+      colors: {
+        background_tab: wmActiveBackground,
+        background_tab_inactive: wmInactiveBackground,
+        bookmark_text: windowForegroundNormal,
+        button_background: DEBUG_COLOR,
+        frame: wmActiveBackground,
+        frame_inactive: wmInactiveBackground,
+        ntp_background: viewBackgroundNormal,
+        ntp_header: DEBUG_COLOR,
+        ntp_link: DEBUG_COLOR,
+        ntp_text: viewForegroundNormal,
+        omnibox_background: viewBackgroundNormal,
+        omnibox_text: viewForegroundNormal,
+        tab_background_text: wmActiveForeground,
+        tab_background_text_inactive: wmInactiveForeground,
+        tab_text: windowForegroundNormal,
+        toolbar: viewBackgroundAlternate,
+        toolbar_button_icon: windowForegroundNormal,
+        toolbar_text: windowForegroundNormal,
+      },
+    },
+  }
+
+  return manifest
 }
 
-kreadconfig() {
-  kreadconfig5 --group "$1" --key "$2"
+const DEBUG_COLOR = [255, 0, 255]
+
+/**
+ * @param {string[]} groups
+ * @param {string} key
+ */
+function kReadConfig(groups, key) {
+  return spawnSync('kreadconfig5', [
+    ...groups.map((x) => ['--group', x]).flat(),
+    '--key',
+    key,
+  ])
+    .stdout.toString()
+    .trim()
 }
 
-main "$@"
+/**
+ * @param {string[]} groups
+ * @param {string} key
+ */
+function kReadConfigColor(groups, key) {
+  const output = kReadConfig(groups, key)
+
+  if (!output) {
+    throw new Error(`Could not find color for ${groups} ${key}`)
+  }
+
+  return output.split(',').map(Number)
+}
+
+/**
+ * @typedef {{
+ *  manifest_version: number
+ *  name: string
+ *  description: string
+ *  version: string
+ *  theme: ManifestTheme
+ * }} Manifest
+ */
+
+/**
+ * @typedef {{
+ *  colors?: {
+ *    background_tab?: number[]
+ *    background_tab_inactive?: number[]
+ *    background_tab_incognito?: number[]
+ *    background_tab_incognito_inactive?: number[]
+ *    bookmark_text?: number[]
+ *    button_background?: number[]
+ *    frame?: number[]
+ *    frame_inactive?: number[]
+ *    frame_incognito?: number[]
+ *    frame_incognito_inactive?: number[]
+ *    ntp_background?: number[]
+ *    ntp_header?: number[]
+ *    ntp_link?: number[]
+ *    ntp_text?: number[]
+ *    omnibox_background?: number[]
+ *    omnibox_text?: number[]
+ *    tab_background_text?: number[]
+ *    tab_background_text_inactive?: number[]
+ *    tab_background_text_incognito?: number[]
+ *    tab_background_text_incognito_inactive?: number[]
+ *    tab_text?: number[]
+ *    toolbar?: number[]
+ *    toolbar_button_icon?: number[]
+ *    toolbar_text?: number[]
+ *  }
+ *  tints?: {
+ *    background_tab?: number[]
+ *    buttons?: number[]
+ *    frame?: number[]
+ *    frame_inactive?: number[]
+ *    frame_incognito?: number[]
+ *    frame_incognito_inactive?: number[]
+ *  }
+ * }} ManifestTheme
+ */
+
+main()
+  .then(() => process.exit())
+  .catch((err) => {
+    throw err
+  })
